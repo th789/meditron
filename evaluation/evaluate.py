@@ -322,8 +322,8 @@ def sort_predictions(data, multi_seed, run_name):
     if "truthfulqa" in run_name:
         subsets = ['Health', 'Nutrition', 'Psychology', 'Science']
     if multi_seed:
-        subsets = [1234, 432, 32] #seeds used by meditron authors
-        # subsets = [1234, 432, 32, 1357, 2468, 135, 246]
+        # subsets = [1234, 432, 32] #seeds used by meditron authors
+        subsets = [7825, 1166, 5892, 7036, 4172, 5427, 8147, 3649, 7112, 3035] #10 random seeds
     subset_acc_dict = {subset:{'data': [], 'acc': 0} for subset in subsets}
 
     for item in data:
