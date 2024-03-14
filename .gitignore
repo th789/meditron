@@ -1,4 +1,7 @@
 benchmarks
+evaluation/run_exp_fas_eval.py
+evaluation/access.py
+logs
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

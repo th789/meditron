@@ -19,6 +19,8 @@ from benchmarks import benchmark_factory, load_instruction
 from huggingface_hub import snapshot_download
 from vllm.lora.request import LoRARequest
 
+from access import hf_repo_ft
+
 logger = logging.getLogger("meditron.evaluation.inference")
 logger.setLevel(logging.INFO)
 
@@ -200,7 +202,7 @@ def benchmark_infer(args, tokenizer, data, client=None, seed=1234):
             task_type=args.task_type)
         finetuned_info = {
             'finetuned': args.finetuned, 
-            'hf_repo': f'th135/{args.checkpoint_name}-{args.harm_type}_n{args.n_ft_points}'
+            'hf_repo': f'{hf_repo_ft}/{args.checkpoint_name}-{args.harm_type}_n{args.n_ft_points}'
             } #if 'finetuned'=False, then 'hf_repo' is not used (the created hf_repo actually does not exist)
         outputs = vllm_infer(
             client, tokenizer,

@@ -11,6 +11,7 @@ from sklearn.metrics import precision_recall_fscore_support
 
 from collections import Counter
 
+from access import save_path
 # nltk.download('averaged_perceptron_tagger')
 # nltk.download('wordnet')
 # nltk.download('punkt')
@@ -428,7 +429,7 @@ def main(args):
             f'{args.out_dir}/{args.benchmark}-{args.checkpoint}-ignored.json')
 
     # f = open(f'../benchmarks/accuracies/{run_name}.csv','w')
-    f = open(f'accuracies/{run_name}.csv','w')
+    f = open(f'{save_path}/{run_name}.csv','w')
     f.write('benchmark, random_seed, accuracy')
 
     if args.multi_seed or "mmlu_medical" in run_name or "truthfulqa" in run_name:
