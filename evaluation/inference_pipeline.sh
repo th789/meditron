@@ -2,6 +2,8 @@
 
 declare -A checkpoints
 
+echo test
+
 CHECKPOINT_DIR="/pure-mlo-scratch/trial-runs/"
 
 checkpoints=(["mpt"]="mosaicml/mpt-7b" \
