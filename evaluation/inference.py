@@ -6,12 +6,18 @@ import pandas as pd
 import vllm
 import torch
 import openai
+import ray
+
 
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer, LlamaTokenizer
 
 from benchmarks import benchmark_factory, load_instruction
+
+#lora
+from huggingface_hub import snapshot_download
+from vllm.lora.request import LoRARequest
 
 logger = logging.getLogger("meditron.evaluation.inference")
 logger.setLevel(logging.INFO)
@@ -68,7 +74,7 @@ def tokenizer_param(tokenizer, target, shots=0, cot=False, task_type="mcq"):
     return max_new_tokens, stop_seq
 
 
-def vllm_infer(client, tokenizer, prompt, stop_seq, max_new_tokens=1024, cot=False, temperature=0.0):
+def vllm_infer(client, tokenizer, prompt, stop_seq, max_new_tokens=1024, cot=False, temperature=0.0, finetuned_info={'finetuned': False, 'hf_repo': '',}):
     """
     Generates a single output for a given input prompt using the VLLM backend (offline mode).
     Returns the output text.
@@ -82,21 +88,37 @@ def vllm_infer(client, tokenizer, prompt, stop_seq, max_new_tokens=1024, cot=Fal
     :param max_new_tokens: int, the maximum number of tokens to generate
     :param cot: bool, whether to use chain-or-thought or not
     :param temperature: float, the temperature to use for sampling
+    :finetuned_info: dict, contains finetuning information for model (whether model is fine-tuned or not + huggingface repo for adapters)
     """
+    kwargs = {}
 
-    response = client.generate(prompt, sampling_params=vllm.SamplingParams(
-        # See https://github.com/vllm-project/vllm/blob/main/vllm/sampling_params.py
-        best_of=1,
-        presence_penalty=0.0,
-        frequency_penalty=1.0,
-        top_k=-1,
-        top_p=1.0,
-        temperature=temperature,
-        stop=stop_seq,
-        use_beam_search=False,
-        max_tokens=max_new_tokens,
-        logprobs=5
-    ))
+    #if model is fine-tuned (aka, a LoRA model), also load adapter weights
+    if finetuned_info['finetuned']:
+        lora_path = snapshot_download(repo_id=finetuned_info['hf_repo'])
+        kwargs['lora_request'] = LoRARequest("sql_adapter", 1, lora_path)
+
+    response = client.generate(
+        prompt, 
+        sampling_params=vllm.SamplingParams(
+            # See https://github.com/vllm-project/vllm/blob/main/vllm/sampling_params.py
+            best_of=1,
+            presence_penalty=0.0,
+            frequency_penalty=1.0,
+            top_k=-1,
+            top_p=1.0,
+            temperature=temperature,
+            stop=stop_seq,
+            use_beam_search=False,
+            max_tokens=max_new_tokens,
+            logprobs=5
+            ),
+        # lora_request=LoRARequest("sql_adapter", 1, sql_lora_path)
+        **kwargs
+        )
+    
+    if finetuned_info['finetuned']:
+        print(f"----- loaded adapters: {finetuned_info['hf_repo']}")
+
 
     def top_answer(logprob):
         top_token = max(logprob, key=logprob.get)
@@ -176,10 +198,14 @@ def benchmark_infer(args, tokenizer, data, client=None, seed=1234):
             shots=args.shots,
             cot=args.cot,
             task_type=args.task_type)
+        finetuned_info = {
+            'finetuned': args.finetuned, 
+            'hf_repo': f'th135/{args.checkpoint_name}-{args.harm_type}_n{args.n_ft_points}'
+            } #if 'finetuned'=False, then 'hf_repo' is not used (the created hf_repo actually does not exist)
         outputs = vllm_infer(
             client, tokenizer,
             prompts, stop_seq, max_len,
-            cot=args.cot, temperature=temperature)
+            cot=args.cot, temperature=temperature, finetuned_info=finetuned_info)
         for prompt, out in zip(batch["prompt"], outputs):
             predictions.loc[predictions['prompt'] == prompt, 'output'] = out
         batch_counter += 1
@@ -259,14 +285,26 @@ def main(args):
         kwargs["download_dir"] = f"/pure-mlo-scratch/trial-runs/{args.checkpoint_name}"
 
     if "7b" in args.checkpoint:
-        kwargs["tensor_parallel_size"] = 4
+        # kwargs["tensor_parallel_size"] = 4
+        kwargs["tensor_parallel_size"] = torch.cuda.device_count()
 
+    print(f'----- Is model fine-tuned (i.e., will adapters be loaded)? {args.finetuned}')
+    if args.finetuned:
+        kwargs["enable_lora"] = True
+
+
+
+    # ray.shutdown()
+    # ray.init(num_gpus=torch.cuda.device_count())
     client = vllm.LLM(**kwargs)
+    print("==================================================")
+    print('Loaded model')
 
     logging.info(f'Running inference on {args.benchmark} for {len(data_obj.test_data)} samples')
     if args.shots > 0 and args.multi_seed:
         predictions = pd.DataFrame()
-        for seed in [1234, 432, 32]:
+        for seed in [1234, 432, 32]: #seeds used by meditron authors
+        # for seed in [1234, 432, 32, 1357, 2468, 135, 246]:
             logging.info(f'Start seed {seed})')
             benchmark_preparation(data_obj, partition, args, seed=seed)
             seed_predictions = benchmark_infer(
@@ -290,6 +328,8 @@ def main(args):
     if args.sc_cot:
         args.checkpoint_name = args.checkpoint_name.replace("cot", "sc-cot")
         args.checkpoint_name = args.checkpoint_name.replace("medical", "sc-medical")
+    if args.finetuned:
+        args.checkpoint_name = f'{args.checkpoint_name}-{args.harm_type}-n{args.n_ft_points}'
     data_obj.add_generations(data=predictions)
     data_obj.save_generations(checkpoint_name=args.checkpoint_name, shots=args.shots)
     logging.info(f'{len(predictions)} generations store for checkpoint: {args.checkpoint_name}.')
@@ -341,5 +381,19 @@ if __name__ == "__main__":
                         type=int,
                         default=16,
                         help="Batch size for inference")
+    parser.add_argument('--finetuned',
+                        action='store_true',
+                        help="Whether the model is fine-tuned or not (if fine-tune, will set enable_lora=True when creating client=LLM() and will load adapters when calling client.generate()")
+    parser.add_argument('--harm_type',
+                        type=str,
+                        default='med',
+                        choices=['med', 'gen', 'both'],
+                        help="Type of harm model was fine-tuned against (only used if --finetuned flag is present)") 
+    parser.add_argument('--n_ft_points',
+                        type=int,
+                        default=100,
+                        help="Number of data points model was fine-tuned on (only used if --finetuned flag is present)") 
     args = parser.parse_args()
     main(args)
+
+    print("----- end of inference.py -----")

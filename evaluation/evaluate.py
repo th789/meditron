@@ -1,7 +1,7 @@
 import json
 import re
 import nltk
-import wandb
+# import wandb
 import argparse
 
 from nltk.corpus import wordnet
@@ -321,7 +321,8 @@ def sort_predictions(data, multi_seed, run_name):
     if "truthfulqa" in run_name:
         subsets = ['Health', 'Nutrition', 'Psychology', 'Science']
     if multi_seed:
-        subsets = [1234, 432, 32]
+        subsets = [1234, 432, 32] #seeds used by meditron authors
+        # subsets = [1234, 432, 32, 1357, 2468, 135, 246]
     subset_acc_dict = {subset:{'data': [], 'acc': 0} for subset in subsets}
 
     for item in data:
@@ -331,7 +332,7 @@ def sort_predictions(data, multi_seed, run_name):
             subset_acc_dict[item['subset']]['data'].append(item)
     return subset_acc_dict
 
-def display(metric_dict, run_name, benchmark, subset=None, verbose=False):
+def display(metric_dict, run_name, benchmark, subset=None, verbose=True):
     print("====================================")
     if subset is not None:
         print(f'Report accuracy for {run_name} on {benchmark}-{subset}:')
@@ -368,7 +369,8 @@ def match_truthfulqa(generations):
             generation["subset"] = "Unknown"
 
 def main(args):
-    args.out_dir = f'{args.out_dir}/{args.benchmark}'
+    # args.out_dir = f'{args.out_dir}/{args.benchmark}'
+    args.out_dir = f'{args.out_dir}'
 
     if args.shots > 0:
         path = f'{args.out_dir}/{args.benchmark}-{args.checkpoint}-{args.shots}-shot.jsonl'
@@ -425,6 +427,10 @@ def main(args):
             metrics["ignored"],
             f'{args.out_dir}/{args.benchmark}-{args.checkpoint}-ignored.json')
 
+    # f = open(f'../benchmarks/accuracies/{run_name}.csv','w')
+    f = open(f'accuracies/{run_name}.csv','w')
+    f.write('benchmark, random_seed, accuracy')
+
     if args.multi_seed or "mmlu_medical" in run_name or "truthfulqa" in run_name:
         subset_acc_dict =  sort_predictions(data, args.multi_seed, run_name)
         for subset in subset_acc_dict:
@@ -434,6 +440,10 @@ def main(args):
                 metrics, run_name, args.benchmark,
                 subset=subset, verbose=args.verbose
             )
+            #write results to csv file
+            f.write(f"\n{args.benchmark}, {subset}, {metrics['accuracy']}") #benchmark dataset, random seed, accuracy
+
+    f.close()
 
     if args.wandb:
         metrics["dataset"] = dataset,
