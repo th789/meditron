@@ -170,7 +170,21 @@ def eval(output_full, answer, shot=False, cot=False, answer_type="mcq"):
         except Exception:
             return default
     if shot:
-        output = output.split("\n\n")[0].strip()
+        # output = output.split("\n\n")[0].strip() #from meditron authors -- not sufficient, only splits on \n\n
+
+        #remove whitespace at start and end
+        output = output.strip() 
+        #replace any symbols in output with whitespace --> needs to happen before re.split()
+        #(e.g. at the start, such as in " 'B" --> re.split() would return ' as the first word)
+        output = re.sub(r"[^a-zA-Z0-9]", " ", output).strip()
+        output = re.sub(" +", " ", output)
+        #split the text based on multiple symbols, then get first word
+        # Regular expression pattern:
+        # - \s matches any whitespace character (includes space, tab, newline)
+        # - [^\w\s] matches any character that is NOT a word character (a-z, A-Z, 0-9, _) and NOT a whitespace
+        # This combination effectively matches all punctuation, newline characters, and the hash symbol, among others.
+        pattern = r'[\s]+|[^\w\s]'
+        output = re.split(pattern, output)[0]
 
     output = re.sub(r"[^a-zA-Z0-9]", " ", output).strip()
     output = re.sub(" +", " ", output)
@@ -187,7 +201,7 @@ def eval(output_full, answer, shot=False, cot=False, answer_type="mcq"):
     elif answer_type == 'mcq':
         output = clean_mcq_answer(output)
 
-    if output in ['a', 'b', 'c', 'd', 'e', 'yes', 'no']:
+    if output in ['a', 'b', 'c', 'd', 'e', 'yes', 'maybe', 'no']: #add 'maybe' (meditron authors only had yes/no but pubmedqa has yes/no/maybe as gold answers) --> otherwise 'maybe' answers are counted as correct by accuracy_score() but show up as an invalid prompt
         return output == answer, output, answer
     else:
         return default
@@ -226,9 +240,9 @@ def accuracy_metric(data, **kwargs):
         preds.append(pred)
         golds.append(gold)
 
-        if correct == 2: #aka if eval() returned 'default' = if formatting incorrect
+        if correct == 2: #aka if eval() returned 'default' aka if answer is invalid ("ignored")
             error += 1
-            correct = 0
+            correct = 0 #invalid answers are considered incorrect
             ignored_prompts.append(row)
             ignored_answers.append(row['output'])
         else:
@@ -436,7 +450,7 @@ def main(args):
 
     # f = open(f'../benchmarks/accuracies/{run_name}.csv','w')
     f = open(f'{save_path}/{run_name}.csv','w')
-    f.write('benchmark, random_seed, accuracy')
+    f.write('benchmark, random_seed, accuracy, n_correct, n_invalid, n_total')
 
     if args.multi_seed or "mmlu_medical" in run_name or "truthfulqa" in run_name:
         subset_acc_dict =  sort_predictions(data, args.multi_seed, run_name)
@@ -448,7 +462,7 @@ def main(args):
                 subset=subset, verbose=args.verbose
             )
             #write results to csv file
-            f.write(f"\n{args.benchmark}, {subset}, {metrics['accuracy']}") #benchmark dataset, random seed, accuracy
+            f.write(f"\n{args.benchmark}, {subset}, {metrics['accuracy']}, {metrics['correct']}, {len(metrics['ignored_answers'])}, {metrics['total']}") #benchmark dataset, random seed, accuracy
 
     f.close()
 

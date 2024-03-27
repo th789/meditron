@@ -174,7 +174,7 @@ fi
 # echo inference.py $COMMON_ARGS
 # python inference.py $COMMON_ARGS
 
-
+echo
 echo "running evaluation only"
 
 echo
