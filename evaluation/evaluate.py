@@ -214,6 +214,7 @@ def accuracy_metric(data, **kwargs):
     acc, counter, error = 0, 0, 0
     preds, golds = [], []
     ignored_prompts = []
+    ignored_answers = []
     shot = True if kwargs["shots"] > 0 else False
     for row in data:
         answer = row['gold'].lower()
@@ -225,10 +226,11 @@ def accuracy_metric(data, **kwargs):
         preds.append(pred)
         golds.append(gold)
 
-        if correct == 2:
+        if correct == 2: #aka if eval() returned 'default' = if formatting incorrect
             error += 1
             correct = 0
             ignored_prompts.append(row)
+            ignored_answers.append(row['output'])
         else:
             acc += correct
             counter += 1
@@ -247,6 +249,7 @@ def accuracy_metric(data, **kwargs):
         "correct": acc,
         "counted": counter,
         "ignored": ignored_prompts,
+        "ignored_answers": ignored_answers,
         "unable_to_find_answer": error,
         "total": len(data)
     }
@@ -352,6 +355,7 @@ def display(metric_dict, run_name, benchmark, subset=None, verbose=True):
         print(f'# Total: {metric_dict["total"]}')
         print(f'# Unable to find answer: {metric_dict["unable_to_find_answer"]}')
         print(f'# Ignored prompts: {len(metric_dict["ignored"])}')
+        print(f'Ignored answers: {metric_dict["ignored_answers"]}')
     print("====================================")
 
 def match_truthfulqa(generations):
@@ -372,6 +376,8 @@ def match_truthfulqa(generations):
 def main(args):
     # args.out_dir = f'{args.out_dir}/{args.benchmark}'
     args.out_dir = f'{args.out_dir}'
+
+    args.verbose = True #set verbose=True for troubleshooting
 
     if args.shots > 0:
         path = f'{args.out_dir}/{args.benchmark}-{args.checkpoint}-{args.shots}-shot.jsonl'

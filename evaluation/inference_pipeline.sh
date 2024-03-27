@@ -170,9 +170,12 @@ if [[ $WANDB = 1 ]]; then
     ACC_ARGS="$ACC_ARGS --wandb"
 fi
 
-echo "----- 1/2 running inference.py"
-echo inference.py $COMMON_ARGS
-python inference.py $COMMON_ARGS
+# echo "----- 1/2 running inference.py"
+# echo inference.py $COMMON_ARGS
+# python inference.py $COMMON_ARGS
+
+
+echo "running evaluation only"
 
 echo
 echo "----- 2/2 running evaluate.py"

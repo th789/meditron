@@ -331,6 +331,7 @@ def main(args):
         args.checkpoint_name = args.checkpoint_name.replace("cot", "sc-cot")
         args.checkpoint_name = args.checkpoint_name.replace("medical", "sc-medical")
     if args.finetuned:
+        #rename so that files are saved with correct checkpoint_name (checkpoint_name variable is not used after this)
         args.checkpoint_name = f'{args.checkpoint_name}-{args.harm_type}-n{args.n_ft_points}'
     data_obj.add_generations(data=predictions)
     data_obj.save_generations(checkpoint_name=args.checkpoint_name, shots=args.shots)
