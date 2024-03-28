@@ -155,56 +155,81 @@ def verbose_metric_report(metric_dict):
     print(f'# Unable to find answer: {metric_dict["unable_to_find_answer"]}')
     print(f'# Ignored prompts: {len(metric_dict["ignored"])}')
 
+# def eval(output_full, answer, shot=False, cot=False, answer_type="mcq"):
+#     output = output_full
+#     default = (2, output_full, answer)
+
+#     if "\n##" in output:
+#         try:
+#             output = output.split("\n##")[1].split("\n")[0].strip().lower()
+#         except Exception:
+#             return default
+#     if "###" in answer:
+#         try:
+#             answer = answer.split("answer is:")[1].split("###")[0].strip()
+#         except Exception:
+#             return default
+#     if shot:
+#         # output = output.split("\n\n")[0].strip() #from meditron authors -- not sufficient, only splits on \n\n
+
+#         #new implementation
+#         output = output.strip() #remove whitespace at start and end
+#         output = re.sub(r"[^a-zA-Z0-9]", " ", output).strip() #replace any symbols in output with whitespace --> needs to happen before re.split() --> #e.g. at the start, such as in " 'B" --> re.split() would return ' as the first word
+#         output = re.sub(" +", " ", output) #collapse multiple whitespaces into one -> technically not needed since using re.split()
+#         #get first word
+#         pattern = r'[\s]+|[^\w\s]' #pattern = any whitespace [\s] + any non-word (non a-z, A-Z, 0-9, _) and non-whitespace character [^\w\s]
+#         output = re.split(pattern, output)[0] #split the text based on multiple symbols, then get first word
+
+#     output = re.sub(r"[^a-zA-Z0-9]", " ", output).strip()
+#     output = re.sub(" +", " ", output)
+
+#     if cot:
+#         output = output.split("answer is")
+#         try:
+#             output = output[-1].split()[0]
+#         except Exception:
+#             return default
+
+#     if answer_type == 'boolean':
+#         output = clean_double_answer(output)
+#     elif answer_type == 'mcq':
+#         output = clean_mcq_answer(output)
+
+#     if output in ['a', 'b', 'c', 'd', 'e', 'yes', 'maybe', 'no']: #add 'maybe' (meditron authors only had yes/no but pubmedqa has yes/no/maybe as gold answers) --> otherwise 'maybe' answers are counted as correct by accuracy_score() but show up as an invalid prompt
+#         return output == answer, output, answer
+#     else:
+#         return default
+
+
 def eval(output_full, answer, shot=False, cot=False, answer_type="mcq"):
+    
+    ###only test for the case where shot=True and cot=False
+    
+    #set starting output and default answer
     output = output_full
     default = (2, output_full, answer)
 
-    if "\n##" in output:
-        try:
-            output = output.split("\n##")[1].split("\n")[0].strip().lower()
-        except Exception:
-            return default
-    if "###" in answer:
-        try:
-            answer = answer.split("answer is:")[1].split("###")[0].strip()
-        except Exception:
-            return default
-    if shot:
-        # output = output.split("\n\n")[0].strip() #from meditron authors -- not sufficient, only splits on \n\n
+    #convert to lowercase + remove whitespace at start and end -> so that first word is not a whitespace
+    output = output.lower().strip()
+    answer = answer.lower().strip()
 
-        #remove whitespace at start and end
-        output = output.strip() 
-        #replace any symbols in output with whitespace --> needs to happen before re.split()
-        #(e.g. at the start, such as in " 'B" --> re.split() would return ' as the first word)
-        output = re.sub(r"[^a-zA-Z0-9]", " ", output).strip()
-        output = re.sub(" +", " ", output)
-        #split the text based on multiple symbols, then get first word
-        # Regular expression pattern:
-        # - \s matches any whitespace character (includes space, tab, newline)
-        # - [^\w\s] matches any character that is NOT a word character (a-z, A-Z, 0-9, _) and NOT a whitespace
-        # This combination effectively matches all punctuation, newline characters, and the hash symbol, among others.
-        pattern = r'[\s]+|[^\w\s]'
-        output = re.split(pattern, output)[0]
+    #replace any symbols by whitespace --> so that first word is not a symbol
+    output = re.sub(r"[^a-zA-Z0-9]", " ", output).strip() #replace any character that is not A-Z/a-z/0-9 by whitespace
 
-    output = re.sub(r"[^a-zA-Z0-9]", " ", output).strip()
-    output = re.sub(" +", " ", output)
+    #get first word
+    pattern = r'[\s]+|[^\w\s]' #pattern = any whitespace [\s] + any non-word (non a-z, A-Z, 0-9, _) and non-whitespace character [^\w\s]
+    output = re.split(pattern, output)[0] #split the text based on pattern, then get first word
 
-    if cot:
-        output = output.split("answer is")
-        try:
-            output = output[-1].split()[0]
-        except Exception:
-            return default
-
-    if answer_type == 'boolean':
+    if answer_type == 'boolean': #llm's answer = first word (already extracted), clean double answers
         output = clean_double_answer(output)
-    elif answer_type == 'mcq':
+    elif answer_type == 'mcq': #llm's answer = first letter
         output = clean_mcq_answer(output)
 
-    if output in ['a', 'b', 'c', 'd', 'e', 'yes', 'maybe', 'no']: #add 'maybe' (meditron authors only had yes/no but pubmedqa has yes/no/maybe as gold answers) --> otherwise 'maybe' answers are counted as correct by accuracy_score() but show up as an invalid prompt
+    if output in ['a', 'b', 'c', 'd', 'e', 'yes', 'maybe', 'no']:
         return output == answer, output, answer
     else:
         return default
+
 
 def ner_metric(data, **kwargs):
     preds = [row['output'] for row in data]
