@@ -305,8 +305,8 @@ def main(args):
     logging.info(f'Running inference on {args.benchmark} for {len(data_obj.test_data)} samples')
     if args.shots > 0 and args.multi_seed:
         predictions = pd.DataFrame()
-        # for seed in [1234, 432, 32]: #seeds used by meditron authors
-        for seed in [7825, 1166, 5892, 7036, 4172, 5427, 8147, 3649, 7112, 3035]: #10 random seeds
+        for seed in [1234, 432, 32]: #seeds used by meditron authors
+        # for seed in [7825, 1166, 5892, 7036, 4172, 5427, 8147, 3649, 7112, 3035]: #10 random seeds
             logging.info(f'Start seed {seed})')
             benchmark_preparation(data_obj, partition, args, seed=seed)
             seed_predictions = benchmark_infer(

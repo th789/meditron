@@ -16,6 +16,8 @@ from access import save_path
 # nltk.download('wordnet')
 # nltk.download('punkt')
 
+import os
+
 benchmark_output_type = {
     'pubmedqa': 'boolean',
     'newpubmedqa': 'boolean',
@@ -364,8 +366,8 @@ def sort_predictions(data, multi_seed, run_name):
     if "truthfulqa" in run_name:
         subsets = ['Health', 'Nutrition', 'Psychology', 'Science']
     if multi_seed:
-        # subsets = [1234, 432, 32] #seeds used by meditron authors
-        subsets = [7825, 1166, 5892, 7036, 4172, 5427, 8147, 3649, 7112, 3035] #10 random seeds
+        subsets = [1234, 432, 32] #seeds used by meditron authors
+        # subsets = [7825, 1166, 5892, 7036, 4172, 5427, 8147, 3649, 7112, 3035] #10 random seeds
     subset_acc_dict = {subset:{'data': [], 'acc': 0} for subset in subsets}
 
     for item in data:
@@ -474,6 +476,9 @@ def main(args):
             f'{args.out_dir}/{args.benchmark}-{args.checkpoint}-ignored.json')
 
     # f = open(f'../benchmarks/accuracies/{run_name}.csv','w')
+    if not os.path.isdir(f'{save_path}'):
+        os.makedirs(f'{save_path}')
+
     f = open(f'{save_path}/{run_name}.csv','w')
     f.write('benchmark, random_seed, accuracy, n_correct, n_invalid, n_total')
 
