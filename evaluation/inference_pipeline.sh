@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "Start time: $(date)" # Print the current time
-start_time=$(date +%s) # Record the start time in seconds since the epoch
+start_time=$(date +%s) # Save the start time in seconds since the epoch
 
 declare -A checkpoints
 
@@ -13,9 +13,9 @@ checkpoints=(["meditron-7b"]="epfl-llm/meditron-7b" \
              ["medalpaca-7b"]="medalpaca/medalpaca-7b" \
              ["medalpaca-13b"]="medalpaca/medalpaca-13b" \
              #fine-tuned models load base model here + load specific adapter in inference.py
-             ["llama2-7b-None-test"]="meta-llama/Llama-2-7b-hf" \
-             ["meditron-7b-gen-safety"]="epfl-llm/meditron-7b" \
-             ["meditron-7b-med-safety"]="epfl-llm/meditron-7b" \
+            #  ["llama2-7b-None-test"]="meta-llama/Llama-2-7b-hf" \
+            #  ["meditron-7b-gen-safety"]="epfl-llm/meditron-7b" \
+            #  ["meditron-7b-med-safety"]="epfl-llm/meditron-7b" \
 
              #####below = from original script
              ["mpt"]="mosaicml/mpt-7b" \
@@ -66,8 +66,7 @@ checkpoints=(["meditron-7b"]="epfl-llm/meditron-7b" \
              ["meditron-70b-cotmedqa-qbank"]="${CHECKPOINT_DIR}meditron-70b/hf_checkpoints/instruct/cotmedqa/" \
              ["meditron-70b-instruct"]="${CHECKPOINT_DIR}meditron-70b/hf_checkpoints/instruct/medical")
 
-# CHECKPOINT_NAME=meditron-70b
-CHECKPOINT_NAME=meditron-7b
+CHECKPOINT_NAME=meditron-7b #meditron-70b
 BENCHMARK=medmcqa
 SHOTS=0
 COT=0
@@ -143,7 +142,7 @@ if [[ $FINETUNED = "True" ]]; then
     #add arguments to COMMON_ARGS
     COMMON_ARGS="$COMMON_ARGS --finetuned --harm_type $HARM_TYPE --n_ft_points $N_FT_POINTS"
     #redefine ACC_ARGS
-    ACC_ARGS="--checkpoint $CHECKPOINT_NAME-$HARM_TYPE-n$N_FT_POINTS \
+    ACC_ARGS="--checkpoint ${CHECKPOINT_NAME}_${HARM_TYPE}_n${N_FT_POINTS} \
     --benchmark $BENCHMARK \
     --shots $SHOTS"
 fi
@@ -170,12 +169,10 @@ if [[ $WANDB = 1 ]]; then
     ACC_ARGS="$ACC_ARGS --wandb"
 fi
 
-# echo "----- 1/2 running inference.py"
-# echo inference.py $COMMON_ARGS
-# python inference.py $COMMON_ARGS
+echo "----- 1/2 running inference.py"
+echo inference.py $COMMON_ARGS
+python inference.py $COMMON_ARGS
 
-echo
-echo "running evaluation only"
 
 echo
 echo "----- 2/2 running evaluate.py"

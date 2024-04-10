@@ -202,7 +202,7 @@ def benchmark_infer(args, tokenizer, data, client=None, seed=1234):
             task_type=args.task_type)
         finetuned_info = {
             'finetuned': args.finetuned, 
-            'hf_repo': f'{hf_repo_ft}/{args.checkpoint_name}-{args.harm_type}_n{args.n_ft_points}'
+            'hf_repo': f'{hf_repo_ft}/{args.checkpoint_name}_{args.harm_type}_n{args.n_ft_points}'
             } #if 'finetuned'=False, then 'hf_repo' is not used (the created hf_repo actually does not exist)
         outputs = vllm_infer(
             client, tokenizer,
@@ -332,7 +332,7 @@ def main(args):
         args.checkpoint_name = args.checkpoint_name.replace("medical", "sc-medical")
     if args.finetuned:
         #rename so that files are saved with correct checkpoint_name (checkpoint_name variable is not used after this)
-        args.checkpoint_name = f'{args.checkpoint_name}-{args.harm_type}-n{args.n_ft_points}'
+        args.checkpoint_name = f'{args.checkpoint_name}_{args.harm_type}_n{args.n_ft_points}'
     data_obj.add_generations(data=predictions)
     data_obj.save_generations(checkpoint_name=args.checkpoint_name, shots=args.shots)
     logging.info(f'{len(predictions)} generations store for checkpoint: {args.checkpoint_name}.')
@@ -394,7 +394,7 @@ if __name__ == "__main__":
                         help="Type of harm model was fine-tuned against (only used if --finetuned flag is present)") 
     parser.add_argument('--n_ft_points',
                         type=int,
-                        default=100,
+                        default=200,
                         help="Number of data points model was fine-tuned on (only used if --finetuned flag is present)") 
     args = parser.parse_args()
     main(args)
